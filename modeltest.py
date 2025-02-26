@@ -39,6 +39,8 @@ print(len(inputs_test))
 
 #padhing
 sequence_X_test = prepare_data.padhing(inputs_test)
+#standardization
+sequence_X_test = prepare_data.normal(sequence_X_test)
 #correctlabel
 Y_test = prepare_data.correctlabel(labels_test_path)
 #padhingu of correctlabel
