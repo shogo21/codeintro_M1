@@ -15,9 +15,9 @@ import random
 import glob
 import time
 
-#imagefile/人ごと/系列ごと
 DATA_DIR = './imagefile'
 videos = sorted(glob.glob(DATA_DIR+'/*/*'))
+
 
 videos_test = []
 for video in videos:
@@ -27,21 +27,38 @@ for video_test in videos_test:
     videos.remove(video_test)
 
 
-#検証データindex
-index = [77, 76, 69, 63, 60, 56, 54, 50, 45, 44, 23, 19, 18, 16, 8, 1]
+
+index = random.sample(range(len(videos)), k=14)
+index = sorted(index, reverse=True)
+
 videos_val = []
 for i in index:
     videos_val.append(videos[i])
     del videos[i]
 
+
+print(len(videos))
+print(len(videos_test))
+print(len(videos_val))
+
+#videos = videos * 3
+#videos_val = videos_val * 3
+print(videos_val)
+print(videos_test)
+print(len(videos))
+print(len(videos_test))
+print(len(videos_val))
+
+
+
 inputs_train_path, labels_train_path = prepare_data.videotopath(videos)
+
 inputs_val_path, labels_val_path = prepare_data.videotopath(videos_val)
 
 datagen = ImageDataGenerator(rescale=1./255)
-batch_size = 4
-image_size = (50, 50)
+batch_size = 2
+image_size = (64, 64)
 
-#系列データの長さを揃える
 max_sequence_num = 0
 for data in inputs_train_path:
   max_sequence_num = max(max_sequence_num, len(data))
@@ -51,9 +68,12 @@ for data in inputs_val_path:
   max_valsequence_num = max(max_valsequence_num, len(data))
 
 train_generator = CustomDataGenerator(inputs_train_path, labels_train_path, batch_size, image_size, max_sequence_num)
-val_generator = ValDataGenerator(inputs_val_path, labels_val_path, 4, image_size, max_valsequence_num)
+val_generator = ValDataGenerator(inputs_val_path, labels_val_path, batch_size, image_size, max_valsequence_num)
+#for data in data_generator:
+print(train_generator[0][0].shape)
+print(val_generator[0][0].shape)
 
-#inceptionモジュール定義
+
 def inception_module(x, filters):
     # 1x1 Convolution
     conv1x1 = Conv2D(filters//4, (1, 1), padding='same', activation='relu')(x)
@@ -104,40 +124,52 @@ def inception_encoder(image_size):
 
   return model
 
-cnn_input = Input(shape=(None, 50, 50, 3), name='cnn_input')
-cnn_model = inception_encoder(50)
+cnn_input = Input(shape=(None, 64, 64, 3), name='cnn_input')
+cnn_model = inception_encoder(64)
 
-#TimeDistributedは時系列データに対応したもの
+
 cnn_output = TimeDistributed(cnn_model, name='time_distributed')(cnn_input)
 lstm_output = LSTM(512, stateful=False, return_sequences=True, name='lstm')(cnn_output)
 dropout_lstm_inception = Dropout(0.5, name='dropout')(lstm_output)
 dense_lstm = Dense(1, activation='sigmoid', name='dense')(dropout_lstm_inception)
 
 final_model = Model(inputs=cnn_input, outputs=dense_lstm)
+
 final_model.summary()
+
+#loaded_model = tf.keras.models.load_model('./lstm_num14_yeschange/my_lstmmodel_num14_epo211_yesrandomchange_statefultrue')
+#loaded_model.summary()
 
 epochs = 200
 
 reduce_lr = ReduceLROnPlateau(monitor='val_accuracy', factor=0.5, patience=10, verbose=1, mode='max', min_lr=0.0001)
 
-checkpoint = ModelCheckpoint(filepath='./lstm_num14_nochange/my_lstmmodel_num14_epo{epoch:03d}_nochange', save_weights_only=False, save_best_only=True, monitor='val_loss', verbose=1)
+checkpoint = ModelCheckpoint(filepath='./lstm_num14_yeschange/my_lstmmodel_num14_epo{epoch:03d}_yesrandomchange', save_weights_only=False, save_best_only=True, monitor='val_loss', verbose=1)
+
 #early = EarlyStopping(monitor='val_loss', patience=20, verbose=1, mode='auto', restore_best_weights=True)
-tensorboard = TensorBoard(log_dir='./lstm_num14_nochange/my_lstmmodel_num14_epo_nochange_logs', histogram_freq=1)
+
+tensorboard = TensorBoard(log_dir='./lstm_num14_yeschange/my_lstmmodel_num14_epo_yesrandomchange_logs', histogram_freq=1)
 callbacks_list=[reduce_lr, checkpoint, tensorboard]
 #callbacks_list=[early, checkpoint, tensorboard]
 
+
 final_model.compile(loss='mean_squared_error', optimizer = Adam(learning_rate=0.001), metrics=['accuracy'])
+#loaded_model.compile(loss='mean_squared_error', optimizer = Adam(learning_rate=0.0001), metrics=['accuracy'])
 
 start = time.time()
+#with tf.device('/GPU:0'):
 history = final_model.fit(train_generator, epochs=800, batch_size=1, verbose=1, validation_data=val_generator, callbacks=callbacks_list)
+#history = loaded_model.fit(train_generator, epochs=800, batch_size=1, verbose=1, validation_data=val_generator, callbacks=callbacks_list)
+
 
 end = time.time()
 
 print('時間: ', end-start)
 
 # モデルと学習履歴を保存　saveでも保存可能,モデルの重みも保存される、損失関数、最適化関数も保存される
-final_model.save("./lstm_num14_nochange/my_lstmmodel_num14_epo800_nochange")
+final_model.save("./lstm_num14_yeschange/my_lstmmodel_num14_epo800_yesrandomchange")
+#loaded_model.save("./lstm_num14_yeschange/my_lstmmodel_num14_epo800_yesrandomchange")
 #学習履歴を保存する、つまりhistoryを保存する
-with open('./lstm_num14_nochange/my_lstmmodel_num14_epo800_nochange.pkl', 'wb') as history_file:
+with open('./lstm_num14_yeschange/my_lstmmodel_num14_epo800_yesrandomchange.pkl', 'wb') as history_file:
     import pickle
     pickle.dump(history.history, history_file)
