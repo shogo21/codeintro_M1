@@ -56,6 +56,39 @@ def imageread2(paths):
             print(str(i)+"番目終了")
     return inputs
 
+#standardization
+def normal(sequences):
+
+    for i, sequence in enumerate(sequences):
+        for j, data in enumerate(sequence):
+            data = data.astype('float32')
+
+            R,G,B = np.dsplit(data, 3)
+            R = np.squeeze(R)
+            if np.std(R) != 0:
+                R = (R - np.mean(R)) / np.std(R)*0.166+0.5
+            else:
+                R = np.ones_like(R) * 0.5
+
+            G = np.squeeze(G)
+            if np.std(G) != 0:
+                G = (G - np.mean(G)) / np.std(G)*0.166+0.5
+            else:
+                G = np.ones_like(G) * 0.5
+
+            B = np.squeeze(B)
+            if np.std(B) != 0:
+                B = (B - np.mean(B)) / np.std(B)*0.166+0.5
+            else:
+                B = np.ones_like(B) * 0.5
+
+            data = np.stack([R, G, B], 2)
+            data = np.clip(data, 0.0, 1.0)
+
+            sequences[i][j] = data
+
+    return sequences
+
 #changebright
 def changebright(ch_lists):
     change_inputs= []
